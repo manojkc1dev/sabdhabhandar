@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sabdhabhandar</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f7f6;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      .search-container {
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        width: 100%;
+        max-width: 400px;
+      }
+      h1 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+      }
+      input {
+        width: 80%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        font-size: 16px;
+        margin-bottom: 15px;
+        outline: none;
+      }
+      input:focus {
+        border-color: #3498db;
+      }
+      button {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: 0.3s;
+      }
+      button:hover {
+        background-color: #2980b9;
+      }
+      #result-box {
+        margin-top: 25px;
+        padding: 15px;
+        border-radius: 8px;
+        background-color: #e8f4f8;
+        display: none; /* Hidden until searched */
+        font-size: 18px;
+        color: #2c3e50;
+      }
+      .error {
+        background-color: #fce4e4 !important;
+        color: #cc0000 !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="search-container">
+      <h1>Sabdhabhandar</h1>
+      <input
+        type="text"
+        id="wordInput"
+        placeholder="Enter an English word..."
+      />
+      <br />
+      <button onclick="searchWord()">Translate</button>
+
+      <div id="result-box"></div>
+    </div>
+
+    <script>
+      function searchWord() {
+        const word = document.getElementById("wordInput").value;
+        const resultBox = document.getElementById("result-box");
+
+        if (!word) {
+          alert("Please enter a word!");
+          return;
+        }
+
+        // Calling Django API!
+        fetch(`/api/translate/?word=${word}`)
+          .then((response) => response.json())
+          .then((data) => {
+            resultBox.style.display = "block"; // Show the box
+            resultBox.classList.remove("error");
+
+            if (data.error) {
+              resultBox.classList.add("error");
+              resultBox.innerHTML = `<strong>Oops:</strong> ${data.error}`;
+            } else {
+              // Display the Nepali translation
+              let translation = Array.isArray(data.nepali_translation)
+                ? data.nepali_translation.join(", ")
+                : data.nepali_translation;
+
+              resultBox.innerHTML = `<strong>${data.english_word}:</strong> ${translation}`;
+            }
+          })
+          .catch((error) => console.error("Error:", error));
+      }
+
+      // Listen for keyboard presses inside the input box
+      document
+        .getElementById("wordInput")
+        .addEventListener("keypress", function (event) {
+          // If the user presses the "Enter" key on the keyboard
+          if (event.key === "Enter") {
+            event.preventDefault(); // Prevent any default page refreshing
+            searchWord(); // Run the translation function!
+          }
+        });
+    </script>
+  </body>
+</html>
