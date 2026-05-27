@@ -16,13 +16,16 @@ def import_csv_if_needed():
             file_path = os.path.join(settings.BASE_DIR, 'words.csv')
             if os.path.exists(file_path):
                 print(f"DEBUG: Empty database found. Importing from {file_path}")
-                with open(file_path, mode='r', encoding='utf-8') as file:
+                # Use utf-8-sig to automatically remove invisible BOM characters
+                with open(file_path, mode='r', encoding='utf-8-sig') as file:
                     reader = csv.DictReader(file)
-                    # Bulk create for performance
-                    words = [DictionaryWord(
-                        english_word=row['english_word'].lower().strip(), 
-                        nepali_translation=row['nepali_translation'].strip()
-                    ) for row in reader]
+                    words = []
+                    for row in reader:
+                        # Aggressively strip spaces, newlines, and hidden quotes
+                        eng = row['english_word'].strip(' \t\n\r"\'').lower()
+                        nep = row['nepali_translation'].strip(' \t\n\r"\'')
+                        words.append(DictionaryWord(english_word=eng, nepali_translation=nep))
+                    
                     DictionaryWord.objects.bulk_create(words)
                     print("DEBUG: Import successful!")
             else:
@@ -33,17 +36,17 @@ def import_csv_if_needed():
 # --- API View for Search ---
 class TranslateWordAPI(APIView):
     def get(self, request):
-        word = request.query_params.get('word', None)
+        word = request.query_params.get('word', '').strip(' \t\n\r"\'').lower()
         if not word:
             return Response({"error": "No word provided"}, status=status.HTTP_400_BAD_REQUEST)
         
-        clean_word = word.lower().strip()
-        try:
-            db_word = DictionaryWord.objects.get(english_word=clean_word)
-            # Session history logic
+        # .filter(__iexact) makes it case-insensitive and safe from crashes
+        db_word = DictionaryWord.objects.filter(english_word__iexact=word).first()
+        
+        if db_word:
             history = request.session.get('recent_searches', [])
-            if clean_word not in history:
-                history.insert(0, clean_word)
+            if db_word.english_word not in history:
+                history.insert(0, db_word.english_word)
                 request.session['recent_searches'] = history[:5]
                 request.session.modified = True 
             
@@ -51,7 +54,7 @@ class TranslateWordAPI(APIView):
                 "english_word": db_word.english_word,
                 "nepali_translation": db_word.nepali_translation
             }, status=status.HTTP_200_OK)
-        except DictionaryWord.DoesNotExist:
+        else:
             return Response({"error": "Word not found"}, status=status.HTTP_404_NOT_FOUND)
 
 # --- Debugging View ---
@@ -70,14 +73,27 @@ def homepage(request):
     return render(request, 'index.html', context)
 
 def translate_view(request):
-    word = request.GET.get('word', '').lower().strip()
+    word = request.GET.get('word', '').strip(' \t\n\r"\'').lower()
+    
     if not word:
         return JsonResponse({'error': 'No word provided'}, status=400)
-    try:
-        db_word = DictionaryWord.objects.get(english_word=word)
-        return JsonResponse({'english_word': db_word.english_word, 'nepali_translation': db_word.nepali_translation})
-    except DictionaryWord.DoesNotExist:
-        return JsonResponse({'error': 'Word not found'}, status=404)
+
+    # .filter().first() gracefully returns None if missing, instead of crashing!
+    db_word = DictionaryWord.objects.filter(english_word__iexact=word).first()
+    
+    if db_word:
+        history = request.session.get('recent_searches', [])
+        if db_word.english_word not in history:
+            history.insert(0, db_word.english_word)
+            request.session['recent_searches'] = history[:5]
+            request.session.modified = True 
+
+        return JsonResponse({
+            'english_word': db_word.english_word,
+            'nepali_translation': db_word.nepali_translation
+        })
+    else:
+        return JsonResponse({'error': 'Word not found in dictionary'}, status=404)
     
 def privacy_policy(request):
     return render(request, 'privacy.html')
