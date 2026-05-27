@@ -252,7 +252,7 @@
                 return;
             }
 
-            fetch(`/translate/?word=${word}`)
+            fetch(`/api/translate/?word=${word}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Word not found');
