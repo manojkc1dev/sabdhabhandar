@@ -22,5 +22,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')), # This routes api/... to your api app
     path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
+    path('debug/', views.debug_db, name='debug_db'),
     path('', views.homepage, name='homepage'),
 ]

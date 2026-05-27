@@ -76,3 +76,12 @@ def translate_view(request):
     
 def privacy_policy(request):
     return render(request, 'privacy.html')
+
+
+
+from django.http import HttpResponse
+from api.models import DictionaryWord
+
+def debug_db(request):
+    count = DictionaryWord.objects.count()
+    return HttpResponse(f"Database contains {count} words.")
