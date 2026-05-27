@@ -7,6 +7,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import DictionaryWord
 
+from django.http import HttpResponse
+from api.models import DictionaryWord
+
+
 class TranslateWordAPI(APIView):
     def get(self, request):
         word = request.query_params.get('word', None)
@@ -32,8 +36,28 @@ class TranslateWordAPI(APIView):
             
         except DictionaryWord.DoesNotExist:
             return Response({"error": "Word not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+def debug_db(request):
+    count = DictionaryWord.objects.count()
+    return HttpResponse(f"Database contains {count} words.")
+
+def import_csv_if_needed():
+    if DictionaryWord.objects.count() == 0:
+        file_path = os.path.join(settings.BASE_DIR, 'words.csv')
+        if os.path.exists(file_path):
+            print("DEBUG: Database is empty. Starting import...")
+            with open(file_path, mode='r', encoding='utf-8') as file:
+                reader = csv.DictReader(file)
+                words = [DictionaryWord(english_word=row['english_word'].lower().strip(), 
+                                        nepali_translation=row['nepali_translation'].strip()) 
+                         for row in reader]
+                DictionaryWord.objects.bulk_create(words)
+                print("DEBUG: CSV Import successful!")
+        else:
+            print(f"DEBUG ERROR: Could not find words.csv at {file_path}")
 
 def homepage(request):
+    import_csv_if_needed() 
     random_word = DictionaryWord.objects.order_by('?').first()
     
     recent_searches = request.session.get('recent_searches', [])
@@ -77,25 +101,3 @@ def privacy_policy(request):
     return render(request, 'privacy.html')
 
 
-
-from django.http import HttpResponse
-from api.models import DictionaryWord
-
-def debug_db(request):
-    count = DictionaryWord.objects.count()
-    return HttpResponse(f"Database contains {count} words.")
-
-def import_csv_if_needed():
-    if DictionaryWord.objects.count() == 0:
-        file_path = os.path.join(settings.BASE_DIR, 'words.csv')
-        if os.path.exists(file_path):
-            print("DEBUG: Database is empty. Starting import...")
-            with open(file_path, mode='r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                words = [DictionaryWord(english_word=row['english_word'].lower().strip(), 
-                                        nepali_translation=row['nepali_translation'].strip()) 
-                         for row in reader]
-                DictionaryWord.objects.bulk_create(words)
-                print("DEBUG: CSV Import successful!")
-        else:
-            print(f"DEBUG ERROR: Could not find words.csv at {file_path}")
