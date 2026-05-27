@@ -9,7 +9,6 @@ from rest_framework import status
 from .models import DictionaryWord
 
 def import_csv_if_needed():
-    """Safely populates database with stripped values if completely empty."""
     try:
         if DictionaryWord.objects.count() == 0:
             file_path = os.path.join(settings.BASE_DIR, 'words.csv')
@@ -26,40 +25,46 @@ def import_csv_if_needed():
     except Exception:
         pass
 
+def get_word_safely(search_word):
+    """BULLETPROOF SEARCH: Bypasses SQLite unicode bugs by forcing a raw Python match."""
+    if not search_word: return None
+    
+    # 1. Try standard fast lookup
+    db_word = DictionaryWord.objects.filter(english_word__iexact=search_word).first()
+    if db_word: return db_word
+    
+    # 2. Fallback: Force a manual scan of the database to strip all invisible characters
+    for w in DictionaryWord.objects.all():
+        clean_db = w.english_word.replace('\ufeff', '').replace('\u200b', '').strip().lower()
+        clean_search = search_word.replace('\ufeff', '').replace('\u200b', '').strip().lower()
+        if clean_db == clean_search and clean_search != '':
+            return w
+            
+    return None
+
 def homepage(request):
     import_csv_if_needed()
-    for w in DictionaryWord.objects.all():
-        clean_eng = w.english_word.replace('\ufeff', '').strip(' \t\n\r"\'').lower()
-        if w.english_word != clean_eng:
-            w.english_word = clean_eng
-            w.save()
-    # -----------------------------------------------------------
-
     random_word = DictionaryWord.objects.order_by('?').first()
     recent_searches = request.session.get('recent_searches', [])
-    context = {
+    return render(request, 'index.html', {
         'random_word': random_word,
         'recent_searches': recent_searches
-    }
-    return render(request, 'index.html', context)
+    })
 
 def translate_view(request):
-    """Handles frontend fetch requests seamlessly without crashing."""
-    word = request.GET.get('word', '').strip(' \t\n\r"\'').lower()
-    
+    word = request.GET.get('word', '').strip().lower()
     if not word:
         return JsonResponse({'error': 'No word provided'}, status=400)
 
-    # filter + iexact completely eliminates trailing hidden formatting errors
-    db_word = DictionaryWord.objects.filter(english_word__iexact=word).first()
+    # Use our unbreakable search function
+    db_word = get_word_safely(word)
     
     if db_word:
-        # Save to session history
         history = request.session.get('recent_searches', [])
         if db_word.english_word not in history:
             history.insert(0, db_word.english_word)
             request.session['recent_searches'] = history[:5]
-            request.session.modified = True
+            request.session.modified = True 
 
         return JsonResponse({
             'english_word': db_word.english_word,
@@ -69,10 +74,9 @@ def translate_view(request):
     return JsonResponse({'error': 'Word not found in dictionary'}, status=404)
 
 class TranslateWordAPI(APIView):
-    """Fallback handler for standard DRF API endpoints."""
     def get(self, request):
-        word = request.query_params.get('word', '').strip(' \t\n\r"\'').lower()
-        db_word = DictionaryWord.objects.filter(english_word__iexact=word).first()
+        word = request.query_params.get('word', '').strip().lower()
+        db_word = get_word_safely(word)
         if db_word:
             return Response({
                 "english_word": db_word.english_word,
