@@ -10,6 +10,11 @@ django.setup()
 from api.models import DictionaryWord
 
 def run_import():
+    # ADD THIS CHECK: If the table already has data, stop immediately
+    if DictionaryWord.objects.exists():
+        print("Data already exists in database. Skipping import.")
+        return
+    
     file_path = 'words.csv'
     
     if not os.path.exists(file_path):
