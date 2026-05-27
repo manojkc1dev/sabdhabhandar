@@ -10,13 +10,11 @@ from .models import DictionaryWord
 
 # --- Auto-Import Logic ---
 def import_csv_if_needed():
-    """Checks if the database is empty and populates it from words.csv if necessary."""
     try:
         if DictionaryWord.objects.count() == 0:
             file_path = os.path.join(settings.BASE_DIR, 'words.csv')
             if os.path.exists(file_path):
-                print(f"DEBUG: Empty database found. Importing from {file_path}")
-                # Use utf-8-sig to automatically remove invisible BOM characters
+                # utf-8-sig removes invisible BOM characters
                 with open(file_path, mode='r', encoding='utf-8-sig') as file:
                     reader = csv.DictReader(file)
                     words = []
@@ -27,11 +25,8 @@ def import_csv_if_needed():
                         words.append(DictionaryWord(english_word=eng, nepali_translation=nep))
                     
                     DictionaryWord.objects.bulk_create(words)
-                    print("DEBUG: Import successful!")
-            else:
-                print(f"DEBUG ERROR: words.csv not found at {file_path}")
     except Exception as e:
-        print(f"DEBUG ERROR: Import failed with: {str(e)}")
+        print(f"DEBUG ERROR: Import failed: {str(e)}")
 
 # --- API View for Search ---
 class TranslateWordAPI(APIView):
@@ -40,7 +35,7 @@ class TranslateWordAPI(APIView):
         if not word:
             return Response({"error": "No word provided"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # .filter(__iexact) makes it case-insensitive and safe from crashes
+        # .filter() is forgiving and doesn't crash like .get() does
         db_word = DictionaryWord.objects.filter(english_word__iexact=word).first()
         
         if db_word:
@@ -57,13 +52,11 @@ class TranslateWordAPI(APIView):
         else:
             return Response({"error": "Word not found"}, status=status.HTTP_404_NOT_FOUND)
 
-# --- Debugging View ---
 def debug_db(request):
     return HttpResponse(f"Database contains {DictionaryWord.objects.count()} words.")
 
-# --- Standard Views ---
 def homepage(request):
-    import_csv_if_needed() # Ensure database is populated
+    import_csv_if_needed() 
     random_word = DictionaryWord.objects.order_by('?').first()
     recent_searches = request.session.get('recent_searches', [])
     context = {
@@ -73,12 +66,13 @@ def homepage(request):
     return render(request, 'index.html', context)
 
 def translate_view(request):
+    # Aggressively strip hidden characters from the user's search
     word = request.GET.get('word', '').strip(' \t\n\r"\'').lower()
     
     if not word:
         return JsonResponse({'error': 'No word provided'}, status=400)
 
-    # .filter().first() gracefully returns None if missing, instead of crashing!
+    # Forgiving search that ignores exact case and hidden crashes
     db_word = DictionaryWord.objects.filter(english_word__iexact=word).first()
     
     if db_word:
