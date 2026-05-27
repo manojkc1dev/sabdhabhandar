@@ -1,22 +1,23 @@
-# Shabdhabhandar (शब्दभण्डार)
+# 📖 Shabdhabhandar | (शब्दभण्डार) | English-Nepali Dictionary
 
-Shabdhabhandar is a lightweight, responsive dictionary translation web application designed to provide quick and accurate English-to-Nepali translations.
+**[🚀 View the Live Application Here](https://sabdhabhandar.onrender.com/)**
 
-## 🚀 Features
-- **Instant Translation**: Search for English words and receive immediate Nepali translations powered by a Pandas-integrated SQLite backend.
-- **Word of the Day**: A dynamic feature that displays a random word from the database on every visit.
-- **Search History**: Tracks recent user searches using Django session storage.
-- **Responsive Design**: Mobile-friendly layout using CSS Flexbox.
-- **Privacy First**: Includes a dedicated Privacy and Fair Dealing policy compliant with local standards.
+Shabdhabhandar is a fast, lightweight English to Nepali dictionary web application. It allows users to quickly translate words and keeps track of their recent searches for a seamless learning experience.
+
+## ✨ Features
+* **Instant Translation:** Fast English to Nepali word lookups.
+* **Smart Search:** Built with fault-tolerant search logic to handle formatting variations.
+* **Session History:** Automatically saves and displays your 5 most recent searches.
+* **Word of the Day:** Features a randomized vocabulary word on the homepage.
 
 ## 🛠️ Tech Stack
-- **Framework**: Django 5.2
-- **Database**: SQLite
-- **Frontend**: HTML5, CSS3 (Flexbox), JavaScript
+* **Backend:** Python, Django, Django REST Framework
+* **Database:** SQLite (with automated CSV data ingestion)
+* **Frontend:** HTML, CSS, Vanilla JavaScript
+* **Deployment:** Render
 
-## 📦 How to Run Locally
-
-1. **Clone the repository**:
-   ```bash
-   git clone [https://github.com/manojkc-dev/sabdhabhandar.git](https://github.com/manojkc-dev/sabdhabhandar.git)
-   cd sabdhabhandar
+## 💻 Running it Locally
+1. Clone the repository: `git clone https://github.com/manojkc-dev/sabdhabhandar.git`
+2. Install dependencies: `pip install -r requirements.txt`
+3. Run migrations: `python manage.py migrate`
+4. Start the server: `python manage.py runserver`
